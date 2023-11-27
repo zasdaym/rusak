@@ -64,6 +64,7 @@ func run() error {
 	}
 
 	mux := chi.NewMux()
+	mux.Use(clientIPMiddleware)
 	mux.Use(corsMiddleware)
 	mux.Get("/good", goodHandler(db))
 	mux.Get("/bad", badHandler(db))
@@ -119,6 +120,28 @@ func parseConfig() config {
 		cfg.SentryDSN = val
 	}
 	return cfg
+}
+
+func clientIPMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var (
+			cfConnectingIP = r.Header.Get("CF-Connecting-IP")
+			trueClientIP   = r.Header.Get("True-Client-IP")
+			xRealIP        = r.Header.Get("X-Real-IP")
+			xForwardedFor  = r.Header.Get("X-Forwarded-For")
+		)
+		switch {
+		case cfConnectingIP != "":
+			r.RemoteAddr = cfConnectingIP
+		case trueClientIP != "":
+			r.RemoteAddr = trueClientIP
+		case xRealIP != "":
+			r.RemoteAddr = xRealIP
+		case xForwardedFor != "":
+			r.RemoteAddr = xForwardedFor
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
