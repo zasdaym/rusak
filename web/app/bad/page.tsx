@@ -1,23 +1,25 @@
 import { captureException } from "@sentry/react"
 
 async function getData() {
-  const response = await fetch('http://localhost:8080/bad')
-  if (!response.ok) {
-    captureException(
-      new Error('Bad response from server'),
-      {
-        user: {
-          id: 666,
-          email: 'zasdaym@gmail.com' // Pretend this is extracted from the session,
-        }
-      })
+  try {
+    const response = await fetch(`${process.env.API_URL}/bad`, { cache: 'no-store' })
+    if (!response.ok) {
+      throw new Error(response.statusText)
+    }
+    const data = await response.text()
+    return data
+  } catch (e) {
+    captureException(e, {
+      user: {
+        id: 666,
+        email: 'zasdaym@gmail.com' // Pretend this is extracted from the session,
+      }
+    })
   }
-  const data = await response.text()
-  return data
 }
 
 export default async function Page() {
-  const data = await getData()
+  const data = await getData() || ""
 
   return (
     <>
