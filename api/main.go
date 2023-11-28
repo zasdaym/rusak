@@ -123,22 +123,21 @@ func parseConfig() config {
 }
 
 func clientIPMiddleware(next http.Handler) http.Handler {
+	headers := []string{
+		"CF-Connecting-IP",
+		"Fastly-Client-IP",
+		"True-Client-IP",
+		"X-Client-IP",
+		"X-Forwarded-For",
+		"X-Real-IP",
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var (
-			cfConnectingIP = r.Header.Get("CF-Connecting-IP")
-			trueClientIP   = r.Header.Get("True-Client-IP")
-			xRealIP        = r.Header.Get("X-Real-IP")
-			xForwardedFor  = r.Header.Get("X-Forwarded-For")
-		)
-		switch {
-		case cfConnectingIP != "":
-			r.RemoteAddr = cfConnectingIP
-		case trueClientIP != "":
-			r.RemoteAddr = trueClientIP
-		case xRealIP != "":
-			r.RemoteAddr = xRealIP
-		case xForwardedFor != "":
-			r.RemoteAddr = xForwardedFor
+		for _, header := range headers {
+			if ip := r.Header.Get(header); ip != "" {
+				r.RemoteAddr = ip
+				break
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
